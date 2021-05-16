@@ -1,0 +1,130 @@
+JWT is pronounced as JAWT (jaat)
+It stands for JSON web token and used for managing authorisation.
+It is a URL means of representing a user credentials/identity to be transferred between two parties.
+
+
+There are two types of authorisation
+1) Session based token
+2) JSON web token i.e JWT - It's a token with JSON value.
+
+They both uses HTTP which is a stateless protocol. It means every interaction we made through http should contain all the
+information for that interaction to happen. Nothing is remembered from before like no state is maintained over multiple request.
+It means that if we have a static web page suppose and we want to access it, the user will just provide the url and will get
+the page from the server and hence http works fine here. But now if there is dynamic web app we want authorisation in which
+we have to send the url and identity i.e url+identity.
+for example if we have two servers(microservice for example) and the client is sending some request with url+identity to which
+http responses like "yes you are a user with identity , this is my response".
+But again if the same client is asking for some resource by sending the url and not identity, it will not work as http doesnot
+maintain the state of that first request. hence the server will ask for identity like "who are you.?"
+
+But you will be wondering that it doesn't happen in real scenario ryt. While i am using the banking app the server only requires
+my identity for the first time and then it goes until my session timed out ryt.
+So this is because of tokens which can either be Session token or JWT.
+
+************************************** Session Token **************************************
+It is the most popular mechanism for authentication in most of the applications.
+In session token whenever a user/client is authenticated in a server, the server stores the session(credentials and identity)\
+with the session id in a lookup table / session table and provide the response to the user with the corresponding session id.
+Now when the user wants to access or request any other resource from the server, it will just give the session id to the
+server and the server will look for that id in the session lookup table.
+Here when the server provided the client with the session id for the first time, the client saves that generally in a "cookie".
+
+Cookies are text files with small pieces of data — like a username and password — that are used to identify your computer
+as you use a computer network. Specific cookies known as HTTP cookies are used to identify specific users and improve your
+web browsing experience.Data stored in a cookie is created by the server upon your connection.
+This data is labeled with an ID unique to you and your computer.
+
+So generally this is how the Session tokens works and it is the most adopted method as of now.
+
+Now the problem with this model is like the client or user assumes that there will be only monolithic server like there
+will be only one server but that was not the case in modern application.
+
+Todays application looks like below :
+                               _____________________________> Web server 1
+         url+identity          |
+User ------------------->  Load Balancer -------------------> Web server 2
+                               |_____________________________>Web server 3
+
+So the problem here is while accessing a resource form web server 1, the user will be given a session id in response by
+web server 1 while sotring the session info in its lookup table.
+But if the same user wants the resource or something from web server 2, user will give the session id but the web server2
+will not have any session info corresponding to that id cozz that id+session is stored in web server lookup table. Hence
+One solution can be like we can have in memory cache like redis connected to all three web servers and then asking session
+from this cache table. Well it will work but here we have a problem of one point failure. So to avoid this we use JWT model.
+
+************************************** JSON Web Token **************************************
+
+Now In JWT what happens is that instead of giving a session id as response, the server gave all the session information
+to the user.  This can be seen as the server has authenticated the user one time and gave it the session info with the valid
+signature of it and then ask user, while requesting any other resource just give this info with signature to authenticate.
+Hence all the authentication details will now be with user and the server just has to check the signature.
+
+The signature is for so that no other invalid user can authenticate by duplicating the session details.
+Now this signature and all this session info is generally given as a JSON to the user. Hence JWT is the name.
+
+****************** TO SUMMARISE :- Session Token is a reference based token while JWT is a value based token ***************
+
+**************** Structure of JWT *********************************
+
+If we see the structure of JWT it somewhat looks like this
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ
+.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+
+We can judge like it is encrypted or some type of encoding is done in it but if we look carefully it has three dots or parts
+we can say. So actually it consist of three parts
+
+1)Header - before the first dot. base64encoded
+2)Payload - between the first and second dot. base64encoded
+3) Signature - last part
+
+If we decode the encryption we will get each JSON like
+
+Header as
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+
+PAYLOAD:DATA
+{
+  "sub": "1234567890",
+  "name": "John Doe",
+  "iat": 1516239022
+}
+
+VERIFY SIGNATURE
+HMACSHA256(
+  base64UrlEncode(header) + "." +
+  base64UrlEncode(payload),
+  your-256-bit-secret
+) secret base64 encoded
+
+So if we will look individually the header part just have the type and algorithm type. the payload data would be name,
+subject and the time at request is made. It doesn't contain any sensitive information like username and password.
+ the final part would be the signature we talked about and it is a combination
+of the header+payload+secret_key. This secret key is generated by the server and is unique and hence even if a hacker
+or someone knows the payload and header, it would be difficult to get the secret key.
+
+So The structure of JWT is basically open but the signature makes it a unique one. The client will send this encryption for
+every next authorisation.
+So the steps involved in JWT is :
+
+1) Client will provide userId/password to the server.
+2) Authentication is done by the server and server creates the JWT. Remember JWT is not for authentication.
+3) Server sends JWT to client and client saved it on the local storage or in a cookie.
+4) On subsequent request the client send this JWT to server through the HTTP header. HTTP header is key value pairs where
+    the key would be Authorization here and the value would be Bearer+JWT, hence
+       Authorisation : Bearer+JWT
+5) Server then checks the header and validate the signature. It at first converts the Header and payload into base64 and then
+   computes the signature by using its secret key and then compare it with its own.
+
+Now what if someone steals my JWT and use it for authentication purpose. We have to be careful of how we will be sending JWT
+It should be an https connection and it has been similarisation with other authentication and authorisation solution.
+One of the most common is OAuth which comes with its own security reasons so that people can't steal JWT.
+The disadvantage of JWT is someone if steals our JWT succesfully. In session token we can tell that our token has been stolen
+and say to server like please diable, then the server will delete that session from its session table.
+In JWT cases, We can ofcourse setup the blacklisted JWT's i.e the server will have a list of blacklisted JWT's
+as soon as you told the server that my JWT is stolen , the server will add that session info to the blacklisted JWT and as
+as a result it will not authorise any further user with that JWT.
+
