@@ -205,3 +205,17 @@ To Summarise
 Intercept all incoming requests
 - Extract JWT from the header
 - Validate it and set it in the execution context.
+
+** Now to do above thing we know that we have to create a filter.
+We have already implemented filters in spring security, what we have to do is
+just extend one of the filters and implement the filter method by ourself.
+We have one such filter called OncePerRequestFilter in which every request will be once go through its override method.
+After filtering and validating the last task is to tell the spring security that please dont manage session of your own
+we have already managed it through our filter. and this is done again in the configure override method of SecurityConfigurer
+Firstly we will make the state of session as stateless byt this code
+    http.csrf().disable().authorizeRequests()
+                .antMatchers("/authenticate").permitAll().anyRequest().authenticated()
+        .and().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+
+and then adding it using
+      http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
