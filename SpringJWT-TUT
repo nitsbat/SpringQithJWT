@@ -130,3 +130,78 @@ In JWT cases, We can ofcourse setup the blacklisted JWT's i.e the server will ha
 as soon as you told the server that my JWT is stolen , the server will add that session info to the blacklisted JWT and as
 as a result it will not authorise any further user with that JWT.
 
+********************** JWT in a project ********************************
+
+Just first make the normal project with the basic authentication mechanism and all.
+Then we will add dependencies related to JWT.
+
+********
+First Step would be to create a JWT Util class
+It is created just for making use of all the general methods like for creating or generating token using username, or maybe
+validate token using userDetails, or to ensure whether the token is expired or not, etc.
+
+To create a token from a given username is simple by using the dependency JWT builder and self understood
+
+Jwts.builder().setClaims(claims).setSubject(username).setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10))
+                .signWith(SignatureAlgorithm.HS256, SECRET_KEY).compact();
+
+Also there are claims which tells what claims this user should be given.
+
+***********
+Second step is to create an API endpoint like "/authenticate" where we can post our username and password.
+The following needs to be done :
+1) Firstly that API endpoint should do that , it takes the username and password and will return the JWT and payload.
+2) After that we will assume that the Client will hold that JWT response and sends in its subsequent headers and will authorise
+for the subsequent operations. We need to implement that also.
+3) Like we have to examine every incoming request from the header and then we will take out the JWT out of it and verify
+that its a valid JWT
+4) If it is a valid JWT then it has to be set in the security context as the currently logged in user.
+
+
+Now step by step we go -
+So we want that request should be username and password and response should be the JWT.
+Hence make a model class for AuthenticationRequest for username / password
+and a model class for AuthenticationResponse consist of jwt string.
+
+Then we add an API endpoint with "/authenticate" and to create a JWT token we will pass the body
+and it will be a POST request.
+
+Now we have to first do the basic authentication using this body and it can be done using AuthnticationManager
+which we will autowire and then use the authenticate method in which we use the basic UsernamePasswordAuthenticationToken.
+
+Now for generating a JWT we will use JwtUTil which we have made and it will take UserDetails which we take out
+from our MyUserDetailsService.
+
+Finally we will return the ResponseEntity which we will call the ok() method i.e return 200 ok successfully.
+This is all what we have to done to create authenticate endpoint.
+
+** NOTE - Remember that we have to still authenticate in spring any page and hence as a result we want that in
+startup we have to say to our spring that for all the pages pleae authenticate but for "/authenticate" permit
+everyone as we have written our code for it.
+
+Therefore this can be achieved by configure() method in WebSecurityAdapter and give permission for authenticate
+to all.It is achieved by this code.
+        http.csrf().disable().authorizeRequests()
+                .antMatchers("/authenticate").permitAll().anyRequest().authenticated();
+
+We might have also one issue of AuthenticationManager. For creating a bean for AuthenticationManager
+we need to create a bean of it using WebSecurityAdapterConfigurer class only :
+   public AuthenticationManager getAuthenticationManager() throws Exception {
+        return super.authenticationManager();
+    }
+
+**************************************************************
+
+Now when we run our application after this and authenticate using post request , we will receive a JWT token
+So when we will be accessing any of the other api endpoint or url e.x "/hello", we won't be authorise initially.
+The client needs to be provided the JWT in its http header as key - Authorisation and its value - Bearer+JWT
+But we have to tell spring security that for every request, listen to every request for this particular authorisation
+and whenever there is Authorisation key with JWT string, just take out that string and validate it . And if it is
+a valid JWT just rely on that and authorise the user and set that in the security execution context.
+
+To Summarise
+
+Intercept all incoming requests
+- Extract JWT from the header
+- Validate it and set it in the execution context.
