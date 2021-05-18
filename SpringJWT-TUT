@@ -66,6 +66,8 @@ Now this signature and all this session info is generally given as a JSON to the
 
 **************** Structure of JWT *********************************
 
+https://www.youtube.com/watch?v=_XbXkVdoG_0&list=PLqq-6Pq4lTTYTEooakHchTGglSvkZAjnE&index=12
+
 If we see the structure of JWT it somewhat looks like this
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 .eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ
